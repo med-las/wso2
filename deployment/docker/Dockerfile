@@ -1,5 +1,5 @@
 # deployment/docker/Dockerfile
-FROM --platform=linux/amd64 wso2/wso2mi:4.2.0
+FROM wso2/wso2mi:4.2.0
 
 # Copy the CAR file
 COPY target/bankingdocumentsystem_1.0.0.car ${WSO2_SERVER_HOME}/repository/deployment/server/carbonapps/
