@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<template name="buildBankStatementQuery" xmlns="http://ws.apache.org/ns/synapse">
+    <sequence>
+        <log level="custom">
+            <property name="MESSAGE" value="Building bank statement query"/>
+        </log>
+        <script language="js">
+            <![CDATA[
+                var partyId = mc.getProperty("PARTY_ID");
+                if (partyId && partyId.length < 6) {
+                    partyId = "000000".substring(0, 6 - partyId.length) + partyId;
+                }
+                mc.setProperty("FORMATTED_PARTY_ID", partyId);
+            ]]>
+        </script>
+        <script language="js">
+            <![CDATA[
+                var fromDate = mc.getProperty("STATEMENT_FROM");
+                var toDate = mc.getProperty("STATEMENT_TO");
+                var dateQuery = "";
+                
+                if (fromDate && toDate) {
+                    var fromYear = fromDate.substring(0, 4);
+                    var fromMonth = fromDate.substring(4, 6);
+                    var toYear = toDate.substring(0, 4);
+                    var toMonth = toDate.substring(4, 6);
+                    
+                    if (fromYear === toYear) {
+                        // Same year - build month range
+                        var months = [];
+                        var startMonth = parseInt(fromMonth);
+                        var endMonth = parseInt(toMonth);
+                        for (var i = startMonth; i <= endMonth; i++) {
+                            var monthStr = i < 10 ? "0" + i : "" + i;
+                            months.push("Attr_8924_3 : '" + monthStr + "'");
+                        }
+                        dateQuery = "(Attr_8924_2:'" + fromYear + "')AND (" + months.join(" or ") + ")";
+                    } else {
+                        // Different years - build complex query
+                        var fromMonths = [];
+                        var toMonths = [];
+                        
+                        // From year months
+                        for (var i = parseInt(fromMonth); i <= 12; i++) {
+                            var monthStr = i < 10 ? "0" + i : "" + i;
+                            fromMonths.push("Attr_8924_3 : '" + monthStr + "'");
+                        }
+                        
+                        // To year months
+                        for (var i = 1; i <= parseInt(toMonth); i++) {
+                            var monthStr = i < 10 ? "0" + i : "" + i;
+                            toMonths.push("Attr_8924_3 : '" + monthStr + "'");
+                        }
+                        
+                        dateQuery = "((Attr_8924_2:'" + fromYear + "')AND (" + fromMonths.join(" or ") + ")) OR ((Attr_8924_2:'" + toYear + "')AND (" + toMonths.join(" or ") + "))";
+                    }
+                }
+                
+                mc.setProperty("DATE_QUERY", dateQuery);
+            ]]>
+        </script>
+        <payloadFactory media-type="text">
+            <format>(Attr_8924_10:'$1')AND(Attr_8924_11:'$2')AND(Attr_8924_9:'$3')AND($4)</format>
+            <args>
+                <arg expression="$ctx:FORMATTED_PARTY_ID"/>
+                <arg expression="$ctx:ACCOUNT_ID"/>
+                <arg expression="$ctx:DOC_TYPE"/>
+                <arg expression="$ctx:DATE_QUERY"/>
+            </args>
+        </payloadFactory>
+        <property name="searchQuery" expression="$body" scope="default"/>
+        <log level="custom">
+            <property name="MESSAGE" value="Bank statement query built"/>
+            <property name="QUERY" expression="$ctx:searchQuery"/>
+        </log>
+    </sequence>
+</template>

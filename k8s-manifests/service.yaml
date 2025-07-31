@@ -1,0 +1,19 @@
+# k8s-manifests/service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: wso2mi-banking-document-system-service
+  namespace: banking-document-system
+spec:
+  selector:
+    app: wso2mi-banking-document-system
+  ports:
+    - name: http
+      protocol: TCP
+      port: 8290
+      targetPort: 8290
+    - name: https
+      protocol: TCP
+      port: 8253
+      targetPort: 8253
+  type: ClusterIP

@@ -1,0 +1,13 @@
+openapi: 3.0.1
+info:
+  title: BankingSearchAPI
+  description: API Definition of BankingSearchAPI
+  version: 1.0.0
+servers:
+- url: http://localhost:8290/banking/search
+paths:
+  /statements:
+    get:
+      responses:
+        default:
+          description: Default response

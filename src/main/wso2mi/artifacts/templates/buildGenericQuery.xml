@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<template name="buildGenericQuery" xmlns="http://ws.apache.org/ns/synapse">
+    <sequence>
+        <log level="custom">
+            <property name="MESSAGE" value="Building generic document query"/>
+        </log>
+        <script language="js">
+            <![CDATA[
+                var partyId = mc.getProperty("PARTY_ID");
+                if (partyId && partyId.length < 6) {
+                    partyId = "000000".substring(0, 6 - partyId.length) + partyId;
+                }
+                mc.setProperty("FORMATTED_PARTY_ID", partyId);
+            ]]>
+        </script>
+        <payloadFactory media-type="text">
+            <format>(Attr_8924_10:'$1')AND(Attr_8924_11:'$2')AND(Attr_8924_9:'$3')</format>
+            <args>
+                <arg expression="$ctx:FORMATTED_PARTY_ID"/>
+                <arg expression="$ctx:ACCOUNT_ID"/>
+                <arg expression="$ctx:DOC_TYPE"/>
+            </args>
+        </payloadFactory>
+        <property name="searchQuery" expression="$body" scope="default"/>
+        <log level="custom">
+            <property name="MESSAGE" value="Generic query built"/>
+            <property name="QUERY" expression="$ctx:searchQuery"/>
+        </log>
+    </sequence>
+</template>

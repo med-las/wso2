@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<template name="transformDocumentResponse" xmlns="http://ws.apache.org/ns/synapse">
+    <sequence>
+        <log level="custom">
+            <property name="MESSAGE" value="Transforming OpenText response to banking format"/>
+        </log>
+        <script language="js">
+            <![CDATA[
+                var payload = mc.getPayloadJSON();
+                var statements = [];
+                
+                // Log the total count safely
+                var totalCount = 0;
+                if (payload && payload.collection && payload.collection.paging) {
+                    totalCount = payload.collection.paging.total_count || 0;
+                }
+                mc.setProperty("RESULT_COUNT", totalCount.toString());
+                
+                if (totalCount > 0 && payload.results && payload.results.length > 0) {
+                    for (var i = 0; i < payload.results.length; i++) {
+                        var doc = payload.results[i];
+                        var docName = "";
+                        var docId = "";
+                        var mimeType = "";
+                        
+                        // Safely access nested properties
+                        if (doc.data && doc.data.properties) {
+                            docName = doc.data.properties.name || "";
+                            docId = doc.data.properties.id ? doc.data.properties.id.toString() : "";
+                            mimeType = doc.data.properties.mime_type || "";
+                        }
+                        
+                        // Extract date from document name (last 8 digits)
+                        var docDate = "";
+                        var dateMatch = docName.match(/(\d{8})/);
+                        if (dateMatch) {
+                            var dateStr = dateMatch[1];
+                            docDate = dateStr.substring(0, 4) + "-" + 
+                                     dateStr.substring(4, 6) + "-" + 
+                                     dateStr.substring(6, 8);
+                        }
+                        
+                        // Get reference number from context or generate one
+                        var referenceNo = mc.getProperty("referenceNo") || 
+                                        mc.getProperty("REFERENCE_NO") || 
+                                        "REF-" + Date.now();
+                        
+                        var statement = {
+                            "fromDate": mc.getProperty("STATEMENT_FROM") || "",
+                            "toDate": mc.getProperty("STATEMENT_TO") || "",
+                            "DocDate": docDate,
+                            "referenceNo": referenceNo,
+                            "documentId": docId,
+                            "accountId": mc.getProperty("ACCOUNT_ID") || "",
+                            "partyId": mc.getProperty("PARTY_ID") || "",
+                            "documentName": docName,
+                            "documentType": mc.getProperty("DOC_TYPE") || "",
+                            "documentStatus": "A", // Force to 'A' for all documents as per spec
+                            "docFormat": mimeType === "application/pdf" ? "PDF" : 
+                                       mimeType === "text/csv" ? "CSV" : 
+                                       mimeType === "application/vnd.ms-excel" ? "XLS" : 
+                                       "UNKNOWN"
+                        };
+                        
+                        statements.push(statement);
+                    }
+                }
+                
+                var response = {
+                    "result": {
+                        "status": "SUCCESS"
+                    },
+                    "statements": statements
+                };
+                
+                if (statements.length === 0) {
+                    response.message = "No documents found for the specified criteria";
+                }
+                
+                mc.setPayloadJSON(response);
+            ]]>
+        </script>
+        <log level="custom">
+            <property name="MESSAGE" value="Response transformation completed"/>
+            <property name="STATEMENT_COUNT" expression="$ctx:RESULT_COUNT"/>
+        </log>
+    </sequence>
+</template>

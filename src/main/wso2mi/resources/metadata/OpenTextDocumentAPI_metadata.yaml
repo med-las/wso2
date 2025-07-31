@@ -1,0 +1,10 @@
+---
+key: "OpenTextDocumentAPI-1.0.0"
+name : "OpenTextDocumentAPI"
+displayName : "OpenTextDocumentAPI"
+description: "OpenTextDocumentAPI"
+version: "1.0.0"
+serviceUrl: "https://{MI_HOST}:{MI_PORT}/banking/documents"
+definitionType: "OAS3"
+securityType: "BASIC"
+mutualSSLEnabled: false

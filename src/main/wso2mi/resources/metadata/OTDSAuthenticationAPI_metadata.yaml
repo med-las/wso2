@@ -1,0 +1,10 @@
+---
+key: "OTDSAuthenticationAPI-1.0.0"
+name : "OTDSAuthenticationAPI"
+displayName : "OTDSAuthenticationAPI"
+description: "OTDSAuthenticationAPI"
+version: "1.0.0"
+serviceUrl: "https://{MI_HOST}:{MI_PORT}/banking/otds/auth"
+definitionType: "OAS3"
+securityType: "BASIC"
+mutualSSLEnabled: false

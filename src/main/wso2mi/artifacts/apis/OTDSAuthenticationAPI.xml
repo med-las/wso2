@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<api context="/banking/otds/auth" name="OTDSAuthenticationAPI" xmlns="http://ws.apache.org/ns/synapse">
+    <resource methods="POST" uri-template="/credentials">
+        <inSequence>
+            <log level="custom">
+                <property name="MESSAGE" value="OTDS Auth - Processing credentials request"/>
+                <property name="CLIENT_IP" expression="get-property('axis2', 'REMOTE_ADDR')"/>
+            </log>
+            <property name="USERNAME" expression="json-eval($.user_name)"/>
+            <property name="PASSWORD" expression="json-eval($.password)"/>
+            <!-- Fixed: Allow empty password, only check username -->
+            <filter xpath="string-length($ctx:USERNAME) > 0">
+                <then>
+                    <payloadFactory media-type="json" template-type="default">
+                        <format>
+                            {
+                            "user_name": "$1",
+                            "password": "$2"
+                            }
+                        </format>
+                        <args>
+                            <arg expression="$ctx:USERNAME"/>
+                            <arg expression="$ctx:PASSWORD"/>
+                        </args>
+                    </payloadFactory>
+                    <property name="Content-Type" value="application/json" scope="transport"/>
+                    <property name="Accept" value="application/json" scope="transport"/>
+                    <property name="User-Agent" value="WSO2-MI-Banking-System/1.0" scope="transport"/>
+                    <call>
+                        <endpoint>
+                            <http method="POST" uri-template="https://gedappt.cfgbank.intra:8003/otdsws/v1/authentication/credentials">
+                                <timeout>
+                                    <duration>30000</duration>
+                                    <responseAction>fault</responseAction>
+                                </timeout>
+                                <suspendOnFailure>
+                                    <initialDuration>10000</initialDuration>
+                                    <progressionFactor>2.0</progressionFactor>
+                                    <maximumDuration>60000</maximumDuration>
+                                </suspendOnFailure>
+                            </http>
+                        </endpoint>
+                    </call>
+                    <log level="custom">
+                        <property name="MESSAGE" value="OTDS Auth - Authentication call completed"/>
+                        <property name="USER" expression="$ctx:USERNAME"/>
+                    </log>
+                    <filter xpath="json-eval($.ticket)">
+                        <then>
+                            <property name="OTDS_TICKET" expression="json-eval($.ticket)"/>
+                            <respond/>
+                        </then>
+                        <else>
+                            <log level="custom">
+                                <property name="ERROR" value="OTDS Auth - Invalid credentials or OTDS error"/>
+                            </log>
+                            <payloadFactory media-type="json">
+                                <format>
+                                    {
+                                    "error": "Authentication failed",
+                                    "message": "Invalid credentials or authentication service unavailable",
+                                    "timestamp": "$1"
+                                    }
+                                </format>
+                                <args>
+                                    <arg expression="get-property('SYSTEM_DATE','yyyy-MM-dd HH:mm:ss')"/>
+                                </args>
+                            </payloadFactory>
+                            <property name="HTTP_SC" value="401" scope="axis2"/>
+                            <respond/>
+                        </else>
+                    </filter>
+                </then>
+                <else>
+                    <log level="custom">
+                        <property name="ERROR" value="OTDS Auth - Missing required fields"/>
+                    </log>
+                    <payloadFactory media-type="json">
+                        <format>
+                            {
+                            "error": "Bad Request",
+                            "message": "Missing required field: user_name",
+                            "timestamp": "$1"
+                            }
+                        </format>
+                        <args>
+                            <arg expression="get-property('SYSTEM_DATE','yyyy-MM-dd HH:mm:ss')"/>
+                        </args>
+                    </payloadFactory>
+                    <property name="HTTP_SC" value="400" scope="axis2"/>
+                    <respond/>
+                </else>
+            </filter>
+        </inSequence>
+        <faultSequence>
+            <log level="custom">
+                <property name="ERROR" value="OTDS Auth - System error occurred"/>
+                <property name="ERROR_MESSAGE" expression="get-property('ERROR_MESSAGE')"/>
+            </log>
+            <payloadFactory media-type="json">
+                <format>
+                    {
+                    "error": "System Error",
+                    "message": "Authentication service temporarily unavailable",
+                    "timestamp": "$1"
+                    }
+                </format>
+                <args>
+                    <arg expression="get-property('SYSTEM_DATE','yyyy-MM-dd HH:mm:ss')"/>
+                </args>
+            </payloadFactory>
+            <property name="HTTP_SC" value="503" scope="axis2"/>
+            <respond/>
+        </faultSequence>
+    </resource>
+</api>

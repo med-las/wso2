@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<template name="buildAnnualTaxQuery" xmlns="http://ws.apache.org/ns/synapse">
+    <sequence>
+        <log level="custom">
+            <property name="MESSAGE" value="Building annual tax query"/>
+        </log>
+        <script language="js">
+            <![CDATA[
+                var partyId = mc.getProperty("PARTY_ID");
+                if (partyId && partyId.length < 6) {
+                    partyId = "000000".substring(0, 6 - partyId.length) + partyId;
+                }
+                mc.setProperty("FORMATTED_PARTY_ID", partyId);
+                
+                // For RELVANNFRS, statementDateRange contains years
+                var dateRange = mc.getProperty("DATE_RANGE");
+                var dateQuery = "";
+                
+                if (dateRange) {
+                    var years = dateRange.split(",");
+                    var yearQueries = [];
+                    for (var i = 0; i < years.length; i++) {
+                        var year = years[i].trim();
+                        yearQueries.push("Attr_8924_2 : '" + year + "'");
+                    }
+                    if (yearQueries.length > 0) {
+                        dateQuery = "(" + yearQueries.join(" or ") + ")";
+                    }
+                }
+                
+                mc.setProperty("DATE_QUERY", dateQuery);
+            ]]>
+        </script>
+        <payloadFactory media-type="text">
+            <format>(Attr_8924_10:'$1')AND(Attr_8924_11:'$2')AND(Attr_8924_9:'$3')AND($4)</format>
+            <args>
+                <arg expression="$ctx:FORMATTED_PARTY_ID"/>
+                <arg expression="$ctx:ACCOUNT_ID"/>
+                <arg expression="$ctx:DOC_TYPE"/>
+                <arg expression="$ctx:DATE_QUERY"/>
+            </args>
+        </payloadFactory>
+        <property name="searchQuery" expression="$body" scope="default"/>
+        <log level="custom">
+            <property name="MESSAGE" value="Annual tax query built"/>
+            <property name="QUERY" expression="$ctx:searchQuery"/>
+        </log>
+    </sequence>
+</template>

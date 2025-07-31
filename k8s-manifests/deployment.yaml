@@ -1,0 +1,54 @@
+# k8s-manifests/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wso2mi-banking-document-system
+  namespace: banking-document-system
+  labels:
+    app: wso2mi-banking-document-system
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: wso2mi-banking-document-system
+  template:
+    metadata:
+      labels:
+        app: wso2mi-banking-document-system
+    spec:
+      containers:
+      - name: wso2mi-banking-document-system
+        image: medlas/wso2mi-banking-document-system:latest
+        ports:
+        - containerPort: 8290
+        - containerPort: 8253
+        env:
+        - name: MI_SERVER_HOST
+          value: "wso2mi-banking-docs"
+        volumeMounts:
+        - name: config-volume
+          mountPath: /home/wso2carbon/wso2mi-4.2.0/conf/deployment.toml
+          subPath: deployment.toml
+        resources:
+          requests:
+            memory: "512Mi"
+            cpu: "500m"
+          limits:
+            memory: "1Gi"
+            cpu: "1000m"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 8290
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 8290
+          initialDelaySeconds: 10
+          periodSeconds: 5
+      volumes:
+      - name: config-volume
+        configMap:
+          name: wso2mi-config

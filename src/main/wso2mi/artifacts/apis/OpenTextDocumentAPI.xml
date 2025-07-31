@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<api context="/banking/search" name="BankingSearchAPI" xmlns="http://ws.apache.org/ns/synapse">
+    <resource methods="GET" uri-template="/statements">
+        <inSequence>
+            <log level="custom">
+                <property name="MESSAGE" value="Document Search - Processing statement request"/>
+                <property name="ACCOUNT_ID" expression="$url:accountId"/>
+                <property name="PARTY_ID" expression="$url:partyId"/>
+                <property name="DOC_TYPE" expression="$url:documentType"/>
+            </log>
+            <property name="OTDS_TICKET" expression="$trp:OTDSTicket"/>
+            <filter xpath="boolean($ctx:OTDS_TICKET)">
+                <then>
+                    <property name="ACCOUNT_ID" expression="$url:accountId"/>
+                    <property name="PARTY_ID" expression="$url:partyId"/>
+                    <property name="DOC_TYPE" expression="$url:documentType"/>
+                    <property name="STATEMENT_FROM" expression="$url:statementFrom"/>
+                    <property name="STATEMENT_TO" expression="$url:statementTo"/>
+                    <property name="STATEMENT_YEAR" expression="$url:statementYear"/>
+                    <property name="DATE_RANGE" expression="$url:statementDateRange"/>
+                    <property name="BRANCH_CODE" expression="$url:branchCode"/>
+                    <property name="referenceNo" expression="$url:referenceNo"/>
+                    <switch source="$ctx:DOC_TYPE">
+                        <case regex="RELVBANC">
+                            <call-template target="buildBankStatementQuery"/>
+                        </case>
+                        <case regex="ECHEINTR">
+                            <call-template target="buildInterestEchoQuery"/>
+                        </case>
+                        <case regex="RELVPRTFIN">
+                            <call-template target="buildPortfolioQuery"/>
+                        </case>
+                        <case regex="RELVANNFRS">
+                            <call-template target="buildAnnualTaxQuery"/>
+                        </case>
+                        <default>
+                            <call-template target="buildGenericQuery"/>
+                        </default>
+                    </switch>
+                    <!-- Set URI variable for the endpoint call -->
+                    <property name="uri.var.searchQuery" expression="$ctx:searchQuery"/>
+                    <property name="OTDSTicket" expression="$ctx:OTDS_TICKET" scope="transport"/>
+                    <property name="Accept-Encoding" value="gzip,deflate" scope="transport"/>
+                    <property name="Content-Type" value="application/json" scope="transport"/>
+                    <property name="Host" value="10.10.11.180:8003" scope="transport"/>
+                    <property name="Connection" value="Keep-Alive" scope="transport"/>
+                    <property name="User-Agent" value="WSO2-MI-Banking/1.0" scope="transport"/>
+                    <call>
+                        <endpoint>
+                            <http method="GET" uri-template="https://10.10.11.180:8003/livelink/cs.exe/api/v2/search?where={uri.var.searchQuery}">
+                                <timeout>
+                                    <duration>45000</duration>
+                                    <responseAction>fault</responseAction>
+                                </timeout>
+                                <suspendOnFailure>
+                                    <initialDuration>15000</initialDuration>
+                                    <progressionFactor>2.0</progressionFactor>
+                                    <maximumDuration>120000</maximumDuration>
+                                </suspendOnFailure>
+                            </http>
+                        </endpoint>
+                    </call>
+                    <call-template target="transformDocumentResponse"/>
+                    <respond/>
+                </then>
+                <else>
+                    <log level="custom">
+                        <property name="ERROR" value="Document Search - Missing or invalid OTDS ticket"/>
+                    </log>
+                    <payloadFactory media-type="json">
+                        <format>
+                            {
+                            "result": {
+                            "status": "FAILURE"
+                            },
+                            "error": "Authentication required",
+                            "message": "Valid OTDS ticket required in OTDSTicket header",
+                            "timestamp": "$1"
+                            }
+                        </format>
+                        <args>
+                            <arg expression="get-property('SYSTEM_DATE','yyyy-MM-dd HH:mm:ss')"/>
+                        </args>
+                    </payloadFactory>
+                    <property name="HTTP_SC" value="401" scope="axis2"/>
+                    <respond/>
+                </else>
+            </filter>
+        </inSequence>
+        <faultSequence>
+            <log level="custom">
+                <property name="ERROR" value="Document Search - System error"/>
+                <property name="ERROR_MESSAGE" expression="get-property('ERROR_MESSAGE')"/>
+            </log>
+            <payloadFactory media-type="json">
+                <format>
+                    {
+                    "result": {
+                    "status": "FAILURE"
+                    },
+                    "error": "System Error",
+                    "message": "Document search service temporarily unavailable",
+                    "timestamp": "$1"
+                    }
+                </format>
+                <args>
+                    <arg expression="get-property('SYSTEM_DATE','yyyy-MM-dd HH:mm:ss')"/>
+                </args>
+            </payloadFactory>
+            <property name="HTTP_SC" value="503" scope="axis2"/>
+            <respond/>
+        </faultSequence>
+    </resource>
+</api>

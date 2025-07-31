@@ -1,0 +1,55 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<template name="buildInterestEchoQuery" xmlns="http://ws.apache.org/ns/synapse">
+    <sequence>
+        <log level="custom">
+            <property name="MESSAGE" value="Building interest/portfolio query"/>
+        </log>
+        <script language="js">
+            <![CDATA[
+                var partyId = mc.getProperty("PARTY_ID");
+                if (partyId && partyId.length < 6) {
+                    partyId = "000000".substring(0, 6 - partyId.length) + partyId;
+                }
+                mc.setProperty("FORMATTED_PARTY_ID", partyId);
+                
+                // Build date range for ECHEINTR/RELVPRTFIN
+                var statementYear = mc.getProperty("STATEMENT_YEAR");
+                var dateRange = mc.getProperty("DATE_RANGE");
+                var dateQuery = "";
+                
+                if (statementYear) {
+                    dateQuery += "(Attr_8924_2:'" + statementYear + "')";
+                }
+                
+                if (dateRange) {
+                    var ranges = dateRange.split(",");
+                    var monthQueries = [];
+                    for (var i = 0; i < ranges.length; i++) {
+                        var month = ranges[i].trim();
+                        if (month.length === 1) month = "0" + month;
+                        monthQueries.push("Attr_8924_3 : '" + month + "'");
+                    }
+                    if (monthQueries.length > 0) {
+                        dateQuery += "AND (" + monthQueries.join(" or ") + ")";
+                    }
+                }
+                
+                mc.setProperty("DATE_QUERY", dateQuery);
+            ]]>
+        </script>
+        <payloadFactory media-type="text">
+            <format>(Attr_8924_10:'$1')AND(Attr_8924_11:'$2')AND(Attr_8924_9:'$3')AND($4)</format>
+            <args>
+                <arg expression="$ctx:FORMATTED_PARTY_ID"/>
+                <arg expression="$ctx:ACCOUNT_ID"/>
+                <arg expression="$ctx:DOC_TYPE"/>
+                <arg expression="$ctx:DATE_QUERY"/>
+            </args>
+        </payloadFactory>
+        <property name="searchQuery" expression="$body" scope="default"/>
+        <log level="custom">
+            <property name="MESSAGE" value="Interest/Portfolio query built"/>
+            <property name="QUERY" expression="$ctx:searchQuery"/>
+        </log>
+    </sequence>
+</template>
