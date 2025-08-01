@@ -4,7 +4,7 @@ metadata:
   name: wso2mi-banking-document-system
   namespace: banking-document-system
 spec:
-  replicas: 1  # Commencer avec 1 pour éviter surcharge et observer stabilité
+  replicas: 1
   selector:
     matchLabels:
       app: wso2mi-banking-document-system
@@ -13,7 +13,7 @@ spec:
       labels:
         app: wso2mi-banking-document-system
     spec:
-      terminationGracePeriodSeconds: 60
+      terminationGracePeriodSeconds: 90
       containers:
         - name: wso2mi-banking-document-system
           image: medlas/wso2mi-banking-document-system:latest
@@ -23,29 +23,31 @@ spec:
           env:
             - name: MI_SERVER_HOST
               value: "wso2mi-banking-docs"
+            - name: JAVA_OPTS
+              value: "-Xms512m -Xmx1536m -XX:+UseG1GC -XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap -Djava.awt.headless=true"
           resources:
             requests:
-              memory: "1024Mi"
-              cpu: "500m"
+              memory: "768Mi"
+              cpu: "300m"
             limits:
               memory: "2048Mi"
-              cpu: "1"
+              cpu: "1500m"
           livenessProbe:
             httpGet:
-              path: /
+              path: /services
               port: 8290
-            initialDelaySeconds: 360      # attendre ~6 minutes avant de vérifier le "liveness"
-            periodSeconds: 30
-            timeoutSeconds: 10
-            failureThreshold: 5
+            initialDelaySeconds: 180
+            periodSeconds: 45
+            timeoutSeconds: 15
+            failureThreshold: 3
           readinessProbe:
             httpGet:
-              path: /
+              path: /services
               port: 8290
-            initialDelaySeconds: 300      # attendre ~5 minutes pour readiness
-            periodSeconds: 15
-            timeoutSeconds: 10
-            failureThreshold: 10
+            initialDelaySeconds: 120
+            periodSeconds: 30
+            timeoutSeconds: 15
+            failureThreshold: 5
           volumeMounts:
             - name: config-volume
               mountPath: /home/wso2carbon/wso2mi-4.2.0/conf/deployment.toml
