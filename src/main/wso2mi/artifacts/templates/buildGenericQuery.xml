@@ -3,25 +3,48 @@
     <sequence>
         <log level="custom">
             <property name="MESSAGE" value="Building generic document query"/>
+            <property name="RAW_PARTY_ID" expression="$ctx:PARTY_ID"/>
+            <property name="RAW_ACCOUNT_ID" expression="$ctx:ACCOUNT_ID"/>
+            <property name="RAW_DOC_TYPE" expression="$ctx:DOC_TYPE"/>
         </log>
         <script language="js">
             <![CDATA[
-                var partyId = mc.getProperty("PARTY_ID");
-                if (partyId && partyId.length < 6) {
+                var partyId = mc.getProperty("PARTY_ID") || "";
+                var accountId = mc.getProperty("ACCOUNT_ID") || "";
+                var docType = mc.getProperty("DOC_TYPE") || "";
+                
+                // Pad party ID to 6 digits if provided and less than 6 digits
+                if (partyId && partyId.length > 0 && partyId.length < 6) {
                     partyId = "000000".substring(0, 6 - partyId.length) + partyId;
                 }
                 mc.setProperty("FORMATTED_PARTY_ID", partyId);
+                
+                // Build the query
+                var queryParts = [];
+                
+                if (partyId && partyId.length > 0) {
+                    queryParts.push("(Attr_8924_10:'" + partyId + "')");
+                }
+                
+                if (accountId && accountId.length > 0) {
+                    queryParts.push("(Attr_8924_11:'" + accountId + "')");
+                }
+                
+                if (docType && docType.length > 0) {
+                    queryParts.push("(Attr_8924_9:'" + docType + "')");
+                }
+                
+                var finalQuery = queryParts.length > 0 ? queryParts.join("AND") : "(Attr_8924_9:'*')";
+                mc.setProperty("searchQuery", finalQuery);
             ]]>
         </script>
+        <!-- Set the query as plain text in the message body -->
         <payloadFactory media-type="text">
-            <format>(Attr_8924_10:'$1')AND(Attr_8924_11:'$2')AND(Attr_8924_9:'$3')</format>
+            <format>$1</format>
             <args>
-                <arg expression="$ctx:FORMATTED_PARTY_ID"/>
-                <arg expression="$ctx:ACCOUNT_ID"/>
-                <arg expression="$ctx:DOC_TYPE"/>
+                <arg expression="$ctx:searchQuery"/>
             </args>
         </payloadFactory>
-        <property name="searchQuery" expression="$body" scope="default"/>
         <log level="custom">
             <property name="MESSAGE" value="Generic query built"/>
             <property name="QUERY" expression="$ctx:searchQuery"/>
