@@ -13,7 +13,7 @@ spec:
       labels:
         app: wso2mi-banking-document-system
     spec:
-      terminationGracePeriodSeconds: 90
+      terminationGracePeriodSeconds: 60
       containers:
         - name: wso2mi-banking-document-system
           image: medlas/wso2mi-banking-document-system:latest
@@ -23,35 +23,36 @@ spec:
           env:
             - name: MI_SERVER_HOST
               value: "wso2mi-banking-docs"
-            # FIXED: Removed problematic JVM options
+            # Optimized for WSO2 MI 4.4.0
             - name: JAVA_OPTS
-              value: "-Xms512m -Xmx1536m -XX:+UseG1GC -Djava.awt.headless=true"
+              value: "-Xms512m -Xmx1536m -XX:+UseG1GC -XX:+UseContainerSupport -XX:MaxRAMPercentage=75.0 -Djava.awt.headless=true"
           resources:
             requests:
               memory: "768Mi"
-              cpu: "300m"
+              cpu: "250m"
             limits:
               memory: "2048Mi"
-              cpu: "1500m"
+              cpu: "1000m"
+          # Updated probes for 4.4.0
           livenessProbe:
             httpGet:
-              path: /services
-              port: 8290
-            initialDelaySeconds: 180
-            periodSeconds: 45
-            timeoutSeconds: 15
-            failureThreshold: 3
-          readinessProbe:
-            httpGet:
-              path: /services
+              path: /healthz
               port: 8290
             initialDelaySeconds: 120
             periodSeconds: 30
-            timeoutSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8290
+            initialDelaySeconds: 90
+            periodSeconds: 15
+            timeoutSeconds: 10
             failureThreshold: 5
           volumeMounts:
             - name: config-volume
-              mountPath: /home/wso2carbon/wso2mi-4.2.0/conf/deployment.toml
+              mountPath: /home/wso2carbon/wso2mi-4.4.0/conf/deployment.toml
               subPath: deployment.toml
       volumes:
         - name: config-volume
