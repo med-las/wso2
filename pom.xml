@@ -77,7 +77,7 @@
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-dependency-plugin</artifactId>
-            <version>3.5.0</version>
+            <version>3.6.1</version>
             <executions>
               <execution>
                 <phase>process-resources</phase>
@@ -94,17 +94,23 @@
               </execution>
             </executions>
           </plugin>
+          <!-- Updated Maven Compiler Plugin for Java 17 -->
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-compiler-plugin</artifactId>
+            <version>3.11.0</version>
             <configuration>
-              <source>1.8</source>
-              <target>1.8</target>
+              <source>17</source>
+              <target>17</target>
+              <encoding>UTF-8</encoding>
+              <release>17</release>
             </configuration>
           </plugin>
+          <!-- Updated Maven JAR Plugin -->
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-jar-plugin</artifactId>
+            <version>3.3.0</version>
             <configuration>
               <skipIfEmpty>true</skipIfEmpty>
             </configuration>
@@ -118,6 +124,7 @@
               </execution>
             </executions>
           </plugin>
+          <!-- WSO2 CAR Plugin - Updated version for 4.4.0 -->
           <plugin>
             <groupId>org.wso2.maven</groupId>
             <artifactId>vscode-car-plugin</artifactId>
@@ -133,10 +140,11 @@
               </execution>
             </executions>
           </plugin>
+          <!-- Updated Maven Install Plugin -->
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-install-plugin</artifactId>
-            <version>2.5.2</version>
+            <version>3.1.1</version>
             <executions>
               <execution>
                 <id>install-car</id>
@@ -181,10 +189,11 @@
       <id>docker</id>
       <build>
         <plugins>
-            <!-- Compile and build the class mediator jars -->
+            <!-- Compile and build the class mediator jars with Java 17 -->
             <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-compiler-plugin</artifactId>
+            <version>3.11.0</version>
             <executions>
               <execution>
                 <id>default-compile</id>
@@ -195,13 +204,16 @@
               </execution>
             </executions>
             <configuration>
-              <source>1.8</source>
-              <target>1.8</target>
+              <source>17</source>
+              <target>17</target>
+              <encoding>UTF-8</encoding>
+              <release>17</release>
             </configuration>
           </plugin>
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-jar-plugin</artifactId>
+            <version>3.3.0</version>
             <configuration>
               <skipIfEmpty>true</skipIfEmpty>
             </configuration>
@@ -235,7 +247,7 @@
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-dependency-plugin</artifactId>
-            <version>3.5.0</version>
+            <version>3.6.1</version>
             <executions>
               <execution>
                 <phase>process-resources</phase>
@@ -256,7 +268,7 @@
           <plugin>
             <groupId>org.wso2.maven</groupId>
             <artifactId>mi-container-config-mapper</artifactId>
-            <version>5.2.82</version>
+            <version>5.2.107</version>
             <extensions>true</extensions>
             <executions>
               <execution>
@@ -280,7 +292,7 @@
           </plugin>
           <plugin>
             <artifactId>maven-antrun-plugin</artifactId>
-            <version>3.0.0</version>
+            <version>3.1.0</version>
             <extensions>true</extensions>
             <executions>
               <execution>
@@ -306,7 +318,7 @@
           <plugin>
             <groupId>io.fabric8</groupId>
             <artifactId>docker-maven-plugin</artifactId>
-            <version>0.45.0</version>
+            <version>0.43.4</version>
             <extensions>true</extensions>
             <executions>
               <execution>
@@ -353,6 +365,7 @@
   </profiles>
   <build>
     <plugins>
+      <!-- Updated Unit Test Plugin -->
       <plugin>
         <groupId>org.wso2.maven</groupId>
         <artifactId>synapse-unit-test-maven-plugin</artifactId>
@@ -390,8 +403,14 @@
     <keystore.password>wso2carbon</keystore.password>
     <keystore.alias>wso2carbon</keystore.alias>
     <ciphertool.enable>true</ciphertool.enable>
-    <maven.compiler.source>1.8</maven.compiler.source>
-    <maven.compiler.target>1.8</maven.compiler.target>
+    
+    <!-- Updated Java version properties for Java 17 -->
+    <maven.compiler.source>17</maven.compiler.source>
+    <maven.compiler.target>17</maven.compiler.target>
+    <maven.compiler.release>17</maven.compiler.release>
+    <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+    
     <project.scm.id>integration-project</project.scm.id>
     <project.runtime.version>4.4.0</project.runtime.version>
     <dockerfile.base.image>wso2/wso2mi:${project.runtime.version}</dockerfile.base.image>
