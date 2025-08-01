@@ -21,21 +21,14 @@ pipeline {
             steps {
                 script {
                     sh '''
-                        # Java 17 works perfectly with WSO2 MI 4.4.0
                         export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
                         export PATH=$JAVA_HOME/bin:$PATH
-                        
-                        # Optimized Maven settings for 4.4.0
-                        export MAVEN_OPTS="-Xms512m -Xmx2048m -XX:+UseG1GC -Djava.awt.headless=true"
-                        
-                        echo "Using Java for WSO2 MI 4.4.0:"
+                        echo "Using Java:"
                         java -version
-                        echo "Maven opts: $MAVEN_OPTS"
-        
+
                         chmod +x ./mvnw
                         ./mvnw clean package -DskipTests
-                        
-                        echo "Build completed successfully!"
+
                         echo "Target directory:"
                         ls -la target/
                         echo "Checking for CAR file:"
