@@ -4,7 +4,7 @@ metadata:
   name: wso2mi-banking-document-system
   namespace: banking-document-system
 spec:
-  replicas: 2
+  replicas: 1  # Commencer avec 1 pour éviter surcharge et observer stabilité
   selector:
     matchLabels:
       app: wso2mi-banking-document-system
@@ -13,44 +13,44 @@ spec:
       labels:
         app: wso2mi-banking-document-system
     spec:
+      terminationGracePeriodSeconds: 60
       containers:
-      - name: wso2mi-banking-document-system
-        image: medlas/wso2mi-banking-document-system:latest
-        ports:
-        - containerPort: 8290
-        - containerPort: 8253
-        env:
-        - name: MI_SERVER_HOST
-          value: "wso2mi-banking-docs"
-        resources:
-          requests:
-            memory: "512Mi"
-            cpu: "500m"
-          limits:
-            memory: "1Gi"
-            cpu: "1"
-        # UPDATED HEALTH CHECKS - More lenient timeouts
-        livenessProbe:
-          httpGet:
-            path: /
-            port: 8290
-          initialDelaySeconds: 120    # Wait 2 minutes before first check
-          periodSeconds: 30           # Check every 30 seconds
-          timeoutSeconds: 10          # Allow 10 seconds for response
-          failureThreshold: 5         # Allow 5 failures before restart
-        readinessProbe:
-          httpGet:
-            path: /
-            port: 8290
-          initialDelaySeconds: 90     # Wait 1.5 minutes before first check
-          periodSeconds: 15           # Check every 15 seconds
-          timeoutSeconds: 10          # Allow 10 seconds for response
-          failureThreshold: 10        # Allow 10 failures before marking unready
-        volumeMounts:
-        - name: config-volume
-          mountPath: /home/wso2carbon/wso2mi-4.2.0/conf/deployment.toml
-          subPath: deployment.toml
+        - name: wso2mi-banking-document-system
+          image: medlas/wso2mi-banking-document-system:latest
+          ports:
+            - containerPort: 8290
+            - containerPort: 8253
+          env:
+            - name: MI_SERVER_HOST
+              value: "wso2mi-banking-docs"
+          resources:
+            requests:
+              memory: "1024Mi"
+              cpu: "500m"
+            limits:
+              memory: "2048Mi"
+              cpu: "1"
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 8290
+            initialDelaySeconds: 360      # attendre ~6 minutes avant de vérifier le "liveness"
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8290
+            initialDelaySeconds: 300      # attendre ~5 minutes pour readiness
+            periodSeconds: 15
+            timeoutSeconds: 10
+            failureThreshold: 10
+          volumeMounts:
+            - name: config-volume
+              mountPath: /home/wso2carbon/wso2mi-4.2.0/conf/deployment.toml
+              subPath: deployment.toml
       volumes:
-      - name: config-volume
-        configMap:
-          name: wso2mi-config
+        - name: config-volume
+          configMap:
+            name: wso2mi-config
