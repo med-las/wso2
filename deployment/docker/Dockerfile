@@ -1,4 +1,3 @@
-# deployment/docker/Dockerfile
 FROM wso2/wso2mi:4.2.0
 
 # Copy the CAR file
@@ -13,11 +12,15 @@ COPY deployment/deployment.toml ${WSO2_SERVER_HOME}/conf/
 # Set proper permissions
 USER root
 RUN chown -R wso2carbon:wso2 ${WSO2_SERVER_HOME}
+
+# Add JVM crash prevention and memory settings
+ENV JAVA_OPTS="-Xms512m -Xmx1024m -XX:+UseG1GC -XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap -Djava.awt.headless=true -Dfile.encoding=UTF8 -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp/"
+
 USER wso2carbon
 
 # Expose ports
 EXPOSE 8290 8253
 
-# Health check
-HEALTHCHECK --interval=30s --timeout=3s --start-period=40s --retries=3 \
-  CMD curl -f http://localhost:8290/ || exit 1
+# Improved health check with longer timeout
+HEALTHCHECK --interval=45s --timeout=10s --start-period=120s --retries=5 \
+  CMD curl -f http://localhost:8290/services || exit 1
