@@ -1,10 +1,6 @@
 pipeline {
     agent any
 
-    tools {
-        jdk 'jdk17' // Assure-toi que ce nom existe dans Jenkins > Global Tool Configuration
-    }
-
     environment {
         DOCKERHUB_REGISTRY = 'docker.io'
         DOCKERHUB_USERNAME = 'medlas'
@@ -25,13 +21,17 @@ pipeline {
             steps {
                 script {
                     sh '''
-                        export JAVA_HOME=${JAVA_HOME}
+                        export JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
                         export PATH=$JAVA_HOME/bin:$PATH
+                        echo "Using Java:"
                         java -version
+
                         chmod +x ./mvnw
                         ./mvnw clean package -DskipTests
+
+                        echo "Target directory:"
                         ls -la target/
-                        echo "Checking for CAR file..."
+                        echo "Checking for CAR file:"
                         ls -la target/*.car
                     '''
                 }
@@ -84,6 +84,7 @@ pipeline {
                         microk8s kubectl apply -f k8s-manifests/service.yaml
                         microk8s kubectl apply -f k8s-manifests/deployment.yaml
                         microk8s kubectl apply -f k8s-manifests/ingress.yaml
+
                         microk8s kubectl rollout status deployment/wso2mi-banking-document-system -n banking-document-system --timeout=600s
                     '''
                 }
@@ -97,6 +98,7 @@ pipeline {
                         echo "Checking deployment status..."
                         microk8s kubectl get pods -n banking-document-system
                         microk8s kubectl get services -n banking-document-system
+
                         echo "Waiting for pods to be ready..."
                         microk8s kubectl wait --for=condition=ready pod -l app=wso2mi-banking-document-system -n banking-document-system --timeout=600s
                     '''
@@ -116,7 +118,7 @@ pipeline {
         }
 
         success {
-            echo 'Deployment successful!'
+            echo '✅ Deployment successful!'
             script {
                 sh '''
                     echo "Application endpoints:"
@@ -131,7 +133,7 @@ pipeline {
         }
 
         failure {
-            echo 'Deployment failed!'
+            echo '❌ Deployment failed!'
             script {
                 sh '''
                     echo "Deployment logs:"
