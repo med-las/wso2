@@ -1,85 +1,126 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<api context="/banking/otds/auth" name="OTDSAuthenticationAPI" xmlns="http://ws.apache.org/ns/synapse">
-    <resource methods="POST" uri-template="/credentials">
+<api context="/banking/search" name="BankingSearchAPI" xmlns="http://ws.apache.org/ns/synapse">
+    <resource methods="POST" uri-template="/statements">
         <inSequence>
             <log level="custom">
-                <property name="MESSAGE" value="OTDS Auth - Processing credentials request"/>
-                <property name="CLIENT_IP" expression="get-property('axis2', 'REMOTE_ADDR')"/>
+                <property name="MESSAGE" value="Document Search - Processing statement request"/>
             </log>
-            <property name="USERNAME" expression="json-eval($.user_name)"/>
-            <property name="PASSWORD" expression="json-eval($.password)"/>
-            <!-- Fixed: Allow empty password, only check username -->
-            <filter xpath="string-length($ctx:USERNAME) > 0">
+            <!-- Extract parameters from JSON payload -->
+            <property name="ACCOUNT_ID" expression="json-eval($.StatementListRequest.accountId)"/>
+            <property name="PARTY_ID" expression="json-eval($.StatementListRequest.partyId)"/>
+            <property name="DOC_TYPE" expression="json-eval($.StatementListRequest.documentType)"/>
+            <property name="STATEMENT_FROM" expression="json-eval($.StatementListRequest.statementFrom)"/>
+            <property name="STATEMENT_TO" expression="json-eval($.StatementListRequest.statementTo)"/>
+            <property name="STATEMENT_YEAR" expression="json-eval($.StatementListRequest.statementYear)"/>
+            <property name="DATE_RANGE" expression="json-eval($.StatementListRequest.statementDateRange)"/>
+            <property name="BRANCH_CODE" expression="json-eval($.StatementListRequest.branchCode)"/>
+            <property name="referenceNo" expression="json-eval($.StatementListRequest.referenceNo)"/>
+            <log level="custom">
+                <property name="MESSAGE" value="Extracted parameters"/>
+                <property name="ACCOUNT_ID" expression="$ctx:ACCOUNT_ID"/>
+                <property name="PARTY_ID" expression="$ctx:PARTY_ID"/>
+                <property name="DOC_TYPE" expression="$ctx:DOC_TYPE"/>
+            </log>
+            <!-- Check if we have required parameters -->
+            <filter xpath="string-length($ctx:ACCOUNT_ID) > 0 and string-length($ctx:PARTY_ID) > 0">
                 <then>
-                    <payloadFactory media-type="json" template-type="default">
+                    <!-- Build query based on document type -->
+                    <switch source="$ctx:DOC_TYPE">
+                        <case regex="RELVBANC">
+                            <call-template target="buildBankStatementQuery"/>
+                        </case>
+                        <case regex="ECHEINTR">
+                            <call-template target="buildInterestEchoQuery"/>
+                        </case>
+                        <case regex="RELVPRTFIN">
+                            <call-template target="buildPortfolioQuery"/>
+                        </case>
+                        <case regex="RELVANNFRS">
+                            <call-template target="buildAnnualTaxQuery"/>
+                        </case>
+                        <default>
+                            <call-template target="buildGenericQuery"/>
+                        </default>
+                    </switch>
+                    <property name="CLEAN_QUERY" expression="$body//text()"/>
+                    <log level="custom">
+                        <property name="MESSAGE" value="Query built successfully"/>
+                        <property name="QUERY" expression="$ctx:CLEAN_QUERY"/>
+                    </log>
+                    <!-- URL encode the query parameter -->
+                    <script language="js">
+                        <![CDATA[
+                            var query = mc.getProperty("CLEAN_QUERY");
+                            if (query) {
+                                var encodedQuery = encodeURIComponent(query);
+                                mc.setProperty("ENCODED_QUERY", encodedQuery);
+                            }
+                        ]]>
+                    </script>
+                    <!-- STEP 1: Get authentication token from Postman mock -->
+                    <payloadFactory media-type="json">
                         <format>
                             {
-                            "user_name": "$1",
-                            "password": "$2"
+                            "user_name": "admin",
+                            "password": ""
                             }
                         </format>
-                        <args>
-                            <arg expression="$ctx:USERNAME"/>
-                            <arg expression="$ctx:PASSWORD"/>
-                        </args>
                     </payloadFactory>
                     <property name="Content-Type" value="application/json" scope="transport"/>
                     <property name="Accept" value="application/json" scope="transport"/>
-                    <property name="User-Agent" value="WSO2-MI-Banking-System/1.0" scope="transport"/>
+                    <!-- Call Postman Authentication Mock -->
                     <call>
                         <endpoint>
-                            <http method="POST" uri-template="https://gedappt.cfgbank.intra:8003/otdsws/v1/authentication/credentials">
+                            <http method="POST" uri-template="https://8d1f0593-1f12-4a8d-86a4-6e7696909848.mock.pstmn.io/credentials">
                                 <timeout>
-                                    <duration>30000</duration>
+                                    <duration>10000</duration>
                                     <responseAction>fault</responseAction>
                                 </timeout>
-                                <suspendOnFailure>
-                                    <initialDuration>10000</initialDuration>
-                                    <progressionFactor>2.0</progressionFactor>
-                                    <maximumDuration>60000</maximumDuration>
-                                </suspendOnFailure>
                             </http>
                         </endpoint>
                     </call>
+                    <!-- Extract ticket from auth response -->
+                    <property name="AUTH_TICKET" expression="json-eval($.ticket)"/>
                     <log level="custom">
-                        <property name="MESSAGE" value="OTDS Auth - Authentication call completed"/>
-                        <property name="USER" expression="$ctx:USERNAME"/>
+                        <property name="MESSAGE" value="Authentication completed"/>
+                        <property name="TICKET" expression="$ctx:AUTH_TICKET"/>
                     </log>
-                    <filter xpath="json-eval($.ticket)">
-                        <then>
-                            <property name="OTDS_TICKET" expression="json-eval($.ticket)"/>
-                            <respond/>
-                        </then>
-                        <else>
-                            <log level="custom">
-                                <property name="ERROR" value="OTDS Auth - Invalid credentials or OTDS error"/>
-                            </log>
-                            <payloadFactory media-type="json">
-                                <format>
-                                    {
-                                    "error": "Authentication failed",
-                                    "message": "Invalid credentials or authentication service unavailable",
-                                    "timestamp": "$1"
-                                    }
-                                </format>
-                                <args>
-                                    <arg expression="get-property('SYSTEM_DATE','yyyy-MM-dd HH:mm:ss')"/>
-                                </args>
-                            </payloadFactory>
-                            <property name="HTTP_SC" value="401" scope="axis2"/>
-                            <respond/>
-                        </else>
-                    </filter>
+                    <!-- STEP 2: Call search endpoint with ticket -->
+                    <property name="OTDSTicket" expression="$ctx:AUTH_TICKET" scope="transport"/>
+                    <property name="Content-Type" value="application/json" scope="transport"/>
+                    <property name="Accept" value="application/json" scope="transport"/>
+                    <!-- Call Postman Search Mock -->
+                    <call>
+                        <endpoint>
+                            <http method="GET" uri-template="https://b93fafe9-485c-40b7-acd5-54ae67a2bf8b.mock.pstmn.io/search?where={uri.var.query}">
+                                <timeout>
+                                    <duration>15000</duration>
+                                    <responseAction>fault</responseAction>
+                                </timeout>
+                            </http>
+                        </endpoint>
+                    </call>
+                    <!-- Set the query parameter -->
+                    <property name="uri.var.query" expression="$ctx:ENCODED_QUERY"/>
+                    <log level="custom">
+                        <property name="MESSAGE" value="Search completed via Postman mock"/>
+                    </log>
+                    <!-- Transform the response from Postman mock to banking format -->
+                    <call-template target="transformDocumentResponse"/>
+                    <respond/>
                 </then>
                 <else>
                     <log level="custom">
-                        <property name="ERROR" value="OTDS Auth - Missing required fields"/>
+                        <property name="ERROR" value="Missing required parameters"/>
                     </log>
                     <payloadFactory media-type="json">
                         <format>
                             {
+                            "result": {
+                            "status": "FAILURE"
+                            },
                             "error": "Bad Request",
-                            "message": "Missing required field: user_name",
+                            "message": "Missing required parameters: accountId and partyId are mandatory",
                             "timestamp": "$1"
                             }
                         </format>
@@ -94,14 +135,17 @@
         </inSequence>
         <faultSequence>
             <log level="custom">
-                <property name="ERROR" value="OTDS Auth - System error occurred"/>
+                <property name="ERROR" value="System error occurred"/>
                 <property name="ERROR_MESSAGE" expression="get-property('ERROR_MESSAGE')"/>
             </log>
             <payloadFactory media-type="json">
                 <format>
                     {
+                    "result": {
+                    "status": "FAILURE"
+                    },
                     "error": "System Error",
-                    "message": "Authentication service temporarily unavailable",
+                    "message": "Service temporarily unavailable",
                     "timestamp": "$1"
                     }
                 </format>
