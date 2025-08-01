@@ -75,6 +75,18 @@ pipeline {
             }
         }
 
+        stage('Pre-deployment Cleanup') {
+            steps {
+                script {
+                    sh '''
+                        echo "Cleaning up any existing failed deployments..."
+                        microk8s kubectl delete pod --field-selector=status.phase=Failed -n banking-document-system || true
+                        microk8s kubectl delete pod --field-selector=status.phase=Pending -n banking-document-system || true
+                    '''
+                }
+            }
+        }
+
         stage('Deploy to Kubernetes') {
             steps {
                 script {
@@ -85,7 +97,8 @@ pipeline {
                         microk8s kubectl apply -f k8s-manifests/deployment.yaml
                         microk8s kubectl apply -f k8s-manifests/ingress.yaml
 
-                        microk8s kubectl rollout status deployment/wso2mi-banking-document-system -n banking-document-system --timeout=600s
+                        echo "Waiting for deployment to complete..."
+                        microk8s kubectl rollout status deployment/wso2mi-banking-document-system -n banking-document-system --timeout=900s
                     '''
                 }
             }
@@ -101,6 +114,9 @@ pipeline {
 
                         echo "Waiting for pods to be ready..."
                         microk8s kubectl wait --for=condition=ready pod -l app=wso2mi-banking-document-system -n banking-document-system --timeout=600s
+                        
+                        echo "Checking application health..."
+                        microk8s kubectl exec -n banking-document-system deployment/wso2mi-banking-document-system -- curl -f http://localhost:8290/services || echo "Service not yet ready"
                     '''
                 }
             }
@@ -111,6 +127,8 @@ pipeline {
         always {
             script {
                 sh '''
+                    echo "Deployment diagnostics..."
+                    microk8s kubectl describe pods -l app=wso2mi-banking-document-system -n banking-document-system || true
                     echo "Cleaning up unused Docker images..."
                     docker image prune -f
                 '''
@@ -136,8 +154,18 @@ pipeline {
             echo '❌ Deployment failed!'
             script {
                 sh '''
-                    echo "Deployment logs:"
-                    microk8s kubectl logs -l app=wso2mi-banking-document-system -n banking-document-system --tail=50
+                    echo "=== DEPLOYMENT FAILURE DIAGNOSTICS ==="
+                    echo "Pod status:"
+                    microk8s kubectl get pods -l app=wso2mi-banking-document-system -n banking-document-system || true
+                    echo ""
+                    echo "Pod descriptions:"
+                    microk8s kubectl describe pods -l app=wso2mi-banking-document-system -n banking-document-system || true
+                    echo ""
+                    echo "Container logs (last 100 lines):"
+                    microk8s kubectl logs -l app=wso2mi-banking-document-system -n banking-document-system --tail=100 || true
+                    echo ""
+                    echo "Events:"
+                    microk8s kubectl get events -n banking-document-system --sort-by='.lastTimestamp' | tail -20 || true
                 '''
             }
         }
