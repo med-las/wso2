@@ -57,18 +57,19 @@
                 }
                 
                 mc.setProperty("DATE_QUERY", dateQuery);
+                
+                // Build the final query string directly
+                var finalQuery = "(Attr_8924_10:'" + mc.getProperty("FORMATTED_PARTY_ID") + "')AND(Attr_8924_11:'" + mc.getProperty("ACCOUNT_ID") + "')AND(Attr_8924_9:'" + mc.getProperty("DOC_TYPE") + "')AND(" + dateQuery + ")";
+                mc.setProperty("searchQuery", finalQuery);
             ]]>
         </script>
+        <!-- Set the query as plain text in the message body -->
         <payloadFactory media-type="text">
-            <format>(Attr_8924_10:'$1')AND(Attr_8924_11:'$2')AND(Attr_8924_9:'$3')AND($4)</format>
+            <format>$1</format>
             <args>
-                <arg expression="$ctx:FORMATTED_PARTY_ID"/>
-                <arg expression="$ctx:ACCOUNT_ID"/>
-                <arg expression="$ctx:DOC_TYPE"/>
-                <arg expression="$ctx:DATE_QUERY"/>
+                <arg expression="$ctx:searchQuery"/>
             </args>
         </payloadFactory>
-        <property name="searchQuery" expression="$body" scope="default"/>
         <log level="custom">
             <property name="MESSAGE" value="Bank statement query built"/>
             <property name="QUERY" expression="$ctx:searchQuery"/>
