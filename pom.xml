@@ -94,16 +94,16 @@
               </execution>
             </executions>
           </plugin>
-          <!-- Updated Maven Compiler Plugin for Java 17 -->
+          <!-- Updated Maven Compiler Plugin for Java 11 -->
           <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-compiler-plugin</artifactId>
             <version>3.11.0</version>
             <configuration>
-              <source>17</source>
-              <target>17</target>
+              <source>11</source>
+              <target>11</target>
               <encoding>UTF-8</encoding>
-              <release>17</release>
+              <release>11</release>
             </configuration>
           </plugin>
           <!-- Updated Maven JAR Plugin -->
@@ -189,7 +189,7 @@
       <id>docker</id>
       <build>
         <plugins>
-            <!-- Compile and build the class mediator jars with Java 17 -->
+            <!-- Compile and build the class mediator jars with Java 11 -->
             <plugin>
             <groupId>org.apache.maven.plugins</groupId>
             <artifactId>maven-compiler-plugin</artifactId>
@@ -204,10 +204,10 @@
               </execution>
             </executions>
             <configuration>
-              <source>17</source>
-              <target>17</target>
+              <source>11</source>
+              <target>11</target>
               <encoding>UTF-8</encoding>
-              <release>17</release>
+              <release>11</release>
             </configuration>
           </plugin>
           <plugin>
@@ -404,10 +404,10 @@
     <keystore.alias>wso2carbon</keystore.alias>
     <ciphertool.enable>true</ciphertool.enable>
     
-    <!-- Updated Java version properties for Java 17 -->
-    <maven.compiler.source>17</maven.compiler.source>
-    <maven.compiler.target>17</maven.compiler.target>
-    <maven.compiler.release>17</maven.compiler.release>
+    <!-- Updated Java version properties for Java 11 (Build) / Java 17 (Runtime) -->
+    <maven.compiler.source>11</maven.compiler.source>
+    <maven.compiler.target>11</maven.compiler.target>
+    <maven.compiler.release>11</maven.compiler.release>
     <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
     
