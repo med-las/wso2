@@ -30,20 +30,64 @@
                             mimeType = doc.data.properties.mime_type || "";
                         }
                         
-                        // Extract date from document name (last 8 digits)
+                        // FIXED: Extract date from document name (look for YYYYMMDD pattern)
                         var docDate = "";
+                        // Look for 8-digit date pattern (YYYYMMDD)
                         var dateMatch = docName.match(/(\d{8})/);
                         if (dateMatch) {
                             var dateStr = dateMatch[1];
-                            docDate = dateStr.substring(0, 4) + "-" + 
-                                     dateStr.substring(4, 6) + "-" + 
-                                     dateStr.substring(6, 8);
+                            // Validate it's a reasonable date (starts with 19xx or 20xx)
+                            if (dateStr.substring(0,2) === "19" || dateStr.substring(0,2) === "20") {
+                                docDate = dateStr.substring(0, 4) + "-" + 
+                                         dateStr.substring(4, 6) + "-" + 
+                                         dateStr.substring(6, 8);
+                            }
                         }
                         
-                        // Get reference number from context or generate one
+                        // If no valid date found, use current date
+                        if (!docDate) {
+                            var today = new Date();
+                            var year = today.getFullYear();
+                            var month = today.getMonth() + 1;
+                            var day = today.getDate();
+                            
+                            // Manual padding instead of padStart
+                            var monthStr = month < 10 ? "0" + month : month.toString();
+                            var dayStr = day < 10 ? "0" + day : day.toString();
+                            
+                            docDate = year + "-" + monthStr + "-" + dayStr;
+                        }
+                        
+                        // Get reference number from context
                         var referenceNo = mc.getProperty("referenceNo") || 
                                         mc.getProperty("REFERENCE_NO") || 
                                         "REF-" + Date.now();
+                        
+                        // FIXED: Ensure partyId is 6 digits
+                        var partyId = mc.getProperty("PARTY_ID") || "";
+                        if (partyId && partyId.length < 6) {
+                            partyId = "000000".substring(0, 6 - partyId.length) + partyId;
+                        }
+                        
+                        // FIXED: Better document format detection
+                        var docFormat = "UNKNOWN";
+                        if (mimeType === "application/pdf") {
+                            docFormat = "PDF";
+                        } else if (mimeType === "text/csv") {
+                            docFormat = "CSV";
+                        } else if (mimeType === "application/vnd.ms-excel" || mimeType === "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet") {
+                            docFormat = "XLS";
+                        } else if (mimeType === "text/xml" || mimeType === "application/xml") {
+                            docFormat = "XML";
+                        } else if (docName.toLowerCase().endsWith(".pdf")) {
+                            docFormat = "PDF";
+                        } else if (docName.toLowerCase().endsWith(".xml")) {
+                            docFormat = "XML";
+                        } else if (docName.toLowerCase().endsWith(".csv")) {
+                            docFormat = "CSV";
+                        } else if (docName.toLowerCase().endsWith(".xls") || docName.toLowerCase().endsWith(".xlsx")) {
+                            docFormat = "XLS";
+                        }
                         
                         var statement = {
                             "fromDate": mc.getProperty("STATEMENT_FROM") || "",
@@ -52,14 +96,11 @@
                             "referenceNo": referenceNo,
                             "documentId": docId,
                             "accountId": mc.getProperty("ACCOUNT_ID") || "",
-                            "partyId": mc.getProperty("PARTY_ID") || "",
+                            "partyId": partyId,
                             "documentName": docName,
                             "documentType": mc.getProperty("DOC_TYPE") || "",
                             "documentStatus": "A", // Force to 'A' for all documents as per spec
-                            "docFormat": mimeType === "application/pdf" ? "PDF" : 
-                                       mimeType === "text/csv" ? "CSV" : 
-                                       mimeType === "application/vnd.ms-excel" ? "XLS" : 
-                                       "UNKNOWN"
+                            "docFormat": docFormat
                         };
                         
                         statements.push(statement);
