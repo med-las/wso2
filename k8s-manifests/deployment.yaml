@@ -1,11 +1,8 @@
-# k8s-manifests/deployment.yaml
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: wso2mi-banking-document-system
   namespace: banking-document-system
-  labels:
-    app: wso2mi-banking-document-system
 spec:
   replicas: 2
   selector:
@@ -25,29 +22,34 @@ spec:
         env:
         - name: MI_SERVER_HOST
           value: "wso2mi-banking-docs"
-        volumeMounts:
-        - name: config-volume
-          mountPath: /home/wso2carbon/wso2mi-4.2.0/conf/deployment.toml
-          subPath: deployment.toml
         resources:
           requests:
             memory: "512Mi"
             cpu: "500m"
           limits:
             memory: "1Gi"
-            cpu: "1000m"
+            cpu: "1"
+        # UPDATED HEALTH CHECKS - More lenient timeouts
         livenessProbe:
           httpGet:
             path: /
             port: 8290
-          initialDelaySeconds: 30
-          periodSeconds: 10
+          initialDelaySeconds: 120    # Wait 2 minutes before first check
+          periodSeconds: 30           # Check every 30 seconds
+          timeoutSeconds: 10          # Allow 10 seconds for response
+          failureThreshold: 5         # Allow 5 failures before restart
         readinessProbe:
           httpGet:
             path: /
             port: 8290
-          initialDelaySeconds: 10
-          periodSeconds: 5
+          initialDelaySeconds: 90     # Wait 1.5 minutes before first check
+          periodSeconds: 15           # Check every 15 seconds
+          timeoutSeconds: 10          # Allow 10 seconds for response
+          failureThreshold: 10        # Allow 10 failures before marking unready
+        volumeMounts:
+        - name: config-volume
+          mountPath: /home/wso2carbon/wso2mi-4.2.0/conf/deployment.toml
+          subPath: deployment.toml
       volumes:
       - name: config-volume
         configMap:
