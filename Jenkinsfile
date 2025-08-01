@@ -1,6 +1,10 @@
 pipeline {
     agent any
-    
+
+    tools {
+        jdk 'jdk17' // Assure-toi que ce nom existe dans Jenkins > Global Tool Configuration
+    }
+
     environment {
         DOCKERHUB_REGISTRY = 'docker.io'
         DOCKERHUB_USERNAME = 'medlas'
@@ -9,18 +13,21 @@ pipeline {
         NAMESPACE = 'banking-document-system'
         GIT_REPO = 'https://github.com/med-las/wso2.git'
     }
-    
+
     stages {
         stage('Checkout') {
             steps {
                 git branch: 'main', url: "${GIT_REPO}"
             }
         }
-        
+
         stage('Build Maven') {
             steps {
                 script {
                     sh '''
+                        export JAVA_HOME=${JAVA_HOME}
+                        export PATH=$JAVA_HOME/bin:$PATH
+                        java -version
                         chmod +x ./mvnw
                         ./mvnw clean package -DskipTests
                         ls -la target/
@@ -30,68 +37,59 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Build Docker Image') {
             steps {
                 script {
                     def imageTag = "${BUILD_NUMBER}"
                     def imageName = "${DOCKERHUB_USERNAME}/${IMAGE_NAME}:${imageTag}"
                     def latestImage = "${DOCKERHUB_USERNAME}/${IMAGE_NAME}:latest"
-                    
+
                     sh """
                         docker build -f deployment/docker/Dockerfile -t ${imageName} .
                         docker tag ${imageName} ${latestImage}
                     """
-                    
+
                     env.IMAGE_TAG = imageTag
                     env.FULL_IMAGE_NAME = imageName
                     env.LATEST_IMAGE_NAME = latestImage
                 }
             }
         }
-        
+
         stage('Push to DockerHub') {
             steps {
                 script {
-                    withCredentials([usernamePassword(credentialsId: 'dockerhub-credentials', 
-                                                   usernameVariable: 'DOCKER_USERNAME', 
-                                                   passwordVariable: 'DOCKER_PASSWORD')]) {
-                        sh """
-                            echo ${DOCKER_PASSWORD} | docker login -u ${DOCKER_USERNAME} --password-stdin
-                            docker push ${env.FULL_IMAGE_NAME}
-                            docker push ${env.LATEST_IMAGE_NAME}
-                        """
+                    withCredentials([usernamePassword(
+                        credentialsId: 'dockerhub-credentials',
+                        usernameVariable: 'DOCKER_USERNAME',
+                        passwordVariable: 'DOCKER_PASSWORD'
+                    )]) {
+                        sh '''
+                            echo "$DOCKER_PASSWORD" | docker login -u "$DOCKER_USERNAME" --password-stdin
+                            docker push ${FULL_IMAGE_NAME}
+                            docker push ${LATEST_IMAGE_NAME}
+                        '''
                     }
                 }
             }
         }
-        
+
         stage('Deploy to Kubernetes') {
             steps {
                 script {
                     sh '''
-                        # Apply namespace
                         microk8s kubectl apply -f k8s-manifests/namespace.yaml
-                        
-                        # Apply ConfigMap
                         microk8s kubectl apply -f k8s-manifests/configmap.yaml
-                        
-                        # Apply Service
                         microk8s kubectl apply -f k8s-manifests/service.yaml
-                        
-                        # Apply Deployment
                         microk8s kubectl apply -f k8s-manifests/deployment.yaml
-                        
-                        # Apply Ingress
                         microk8s kubectl apply -f k8s-manifests/ingress.yaml
-                        
-                        # Wait for deployment to be ready
-                        microk8s kubectl rollout status deployment/wso2mi-banking-document-system -n banking-document-system --timeout=300s
+                        microk8s kubectl rollout status deployment/wso2mi-banking-document-system -n banking-document-system --timeout=600s
                     '''
                 }
             }
         }
-        
+
         stage('Verify Deployment') {
             steps {
                 script {
@@ -99,15 +97,14 @@ pipeline {
                         echo "Checking deployment status..."
                         microk8s kubectl get pods -n banking-document-system
                         microk8s kubectl get services -n banking-document-system
-                        
                         echo "Waiting for pods to be ready..."
-                        microk8s kubectl wait --for=condition=ready pod -l app=wso2mi-banking-document-system -n banking-document-system --timeout=300s
+                        microk8s kubectl wait --for=condition=ready pod -l app=wso2mi-banking-document-system -n banking-document-system --timeout=600s
                     '''
                 }
             }
         }
     }
-    
+
     post {
         always {
             script {
@@ -117,6 +114,7 @@ pipeline {
                 '''
             }
         }
+
         success {
             echo 'Deployment successful!'
             script {
@@ -131,6 +129,7 @@ pipeline {
                 '''
             }
         }
+
         failure {
             echo 'Deployment failed!'
             script {
