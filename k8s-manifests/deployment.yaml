@@ -23,8 +23,9 @@ spec:
           env:
             - name: MI_SERVER_HOST
               value: "wso2mi-banking-docs"
+            # FIXED: Removed problematic JVM options
             - name: JAVA_OPTS
-              value: "-Xms512m -Xmx1536m -XX:+UseG1GC -XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap -Djava.awt.headless=true"
+              value: "-Xms512m -Xmx1536m -XX:+UseG1GC -Djava.awt.headless=true"
           resources:
             requests:
               memory: "768Mi"
