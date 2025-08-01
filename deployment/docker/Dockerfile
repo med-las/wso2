@@ -13,14 +13,14 @@ COPY deployment/deployment.toml ${WSO2_SERVER_HOME}/conf/
 USER root
 RUN chown -R wso2carbon:wso2 ${WSO2_SERVER_HOME}
 
-# Add JVM crash prevention and memory settings
-ENV JAVA_OPTS="-Xms512m -Xmx1024m -XX:+UseG1GC -XX:+UnlockExperimentalVMOptions -XX:+UseCGroupMemoryLimitForHeap -Djava.awt.headless=true -Dfile.encoding=UTF8 -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp/"
+# Fixed JVM options - removed deprecated UseCGroupMemoryLimitForHeap
+ENV JAVA_OPTS="-Xms512m -Xmx1024m -XX:+UseG1GC -Djava.awt.headless=true -Dfile.encoding=UTF8 -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp/"
 
 USER wso2carbon
 
 # Expose ports
 EXPOSE 8290 8253
 
-# Improved health check with longer timeout
+# Health check
 HEALTHCHECK --interval=45s --timeout=10s --start-period=120s --retries=5 \
   CMD curl -f http://localhost:8290/services || exit 1
